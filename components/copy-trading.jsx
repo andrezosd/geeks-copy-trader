@@ -1,3 +1,5 @@
+'use client'
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -47,8 +49,8 @@ const CopyTradingComponent = () => {
   
   const [currentUser] = useState({
     id: 1,
-    username: 'SONETST13870670',
-    apiKey: 'abc123xyz789',
+    username: '',
+    apiKey: '',
     accounts: []
   });
   
@@ -66,16 +68,8 @@ const CopyTradingComponent = () => {
   }, [isConnectedToTradovate, tradovateAccounts, connectedUsername, showLoginModal]);
 
   const connectTradovate = async () => {
-    setIsConnecting(true);
-    setTimeout(() => {
-      setIsConnected(true);
-      setIsConnecting(false);
-      currentUser.accounts = [
-        { id: 'DEMO12345', name: 'DEMO12345', type: 'main' },
-        { id: 'DEMO67890', name: 'DEMO67890', type: 'sub' },
-        { id: 'DEMO11111', name: 'DEMO11111', type: 'sub' }
-      ];
-    }, 1500);
+    // Função não usada mais - agora usamos o modal
+    console.log('Função antiga - usar modal agora');
   };
 
   const removeFollower = (id) => {
@@ -498,6 +492,23 @@ const CopyTradingComponent = () => {
                 className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-2 rounded text-sm font-medium"
               >
                 🧪 Testar
+              </button>
+
+              {/* BOTÃO RESET - Para limpar tudo */}
+              <button
+                onClick={() => {
+                  setIsConnectedToTradovate(false);
+                  setTradovateAccounts([]);
+                  setConnectedUsername('');
+                  setSelectedMasterAccount('');
+                  setFollowers([]);
+                  localStorage.clear();
+                  alert('✅ Sistema resetado! Recarregue a página.');
+                  window.location.reload();
+                }}
+                className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm font-medium"
+              >
+                🔄 Reset
               </button>
             </div>
           </div>
