@@ -31,6 +31,7 @@ import {
   History,
   XCircle
 } from 'lucide-react';
+import { PickMyTradeLogin } from '@/components/pickmytrade-login';
 
 const CopyTradingComponent = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -39,6 +40,12 @@ const CopyTradingComponent = () => {
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [showTradeHistory, setShowTradeHistory] = useState(false);
   const [isClosingTrades, setIsClosingTrades] = useState(false);
+  
+  // NOVOS estados para Tradovate real
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isConnectedToTradovate, setIsConnectedToTradovate] = useState(false);
+  const [tradovateAccounts, setTradovateAccounts] = useState([]);
+  const [connectedUsername, setConnectedUsername] = useState('');
   
   const [currentUser] = useState({
     id: 1,
@@ -71,6 +78,25 @@ const CopyTradingComponent = () => {
     setFollowers(followers.map(f => 
       f.id === id ? { ...f, [field]: value } : f
     ));
+  };
+
+  // NOVA função para gerir conexão Tradovate
+  const handleConnectionChange = (connectionData) => {
+    if (connectionData.connected) {
+      setIsConnectedToTradovate(true);
+      setTradovateAccounts(connectionData.accounts || []);
+      setConnectedUsername(connectionData.username || '');
+      setShowLoginModal(false);
+      
+      // Se tiver contas, configurar a primeira como master
+      if (connectionData.accounts && connectionData.accounts.length > 0) {
+        setSelectedMasterAccount(connectionData.accounts[0].id);
+      }
+    } else {
+      setIsConnectedToTradovate(false);
+      setTradovateAccounts([]);
+      setConnectedUsername('');
+    }
   };
 
   const startCopyTrading = () => {
@@ -404,28 +430,41 @@ const CopyTradingComponent = () => {
             
             {/* Botões de Ação */}
             <div className="flex items-center space-x-4">
-              {!isConnected ? (
-                <Button
-                  onClick={connectTradovate}
-                  disabled={isConnecting}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-black font-medium shadow-md px-5 py-2 rounded-lg"
+              {!isConnectedToTradovate ? (
+                <button
+                  onClick={() => setShowLoginModal(true)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                    isConnectedToTradovate 
+                      ? 'bg-green-600 hover:bg-green-700 text-white' 
+                      : 'bg-gray-800 hover:bg-gray-700 text-white'
+                  }`}
                 >
-                  {isConnecting ? (
+                  {isConnectedToTradovate ? (
                     <>
-                      <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
-                      <span className="font-medium">Conectando...</span>
+                      <CheckCircle className="h-5 w-5" />
+                      <span>Tradovate Conectado</span>
+                      {connectedUsername && (
+                        <span className="text-xs opacity-75 ml-1">
+                          ({connectedUsername})
+                        </span>
+                      )}
                     </>
                   ) : (
                     <>
-                      <Link2 className="h-5 w-5 mr-2" />
-                      <span className="font-medium">Conectar Tradovate</span>
+                      <Link2 className="h-5 w-5" />
+                      <span>Conectar ao Tradovate</span>
                     </>
                   )}
-                </Button>
+                </button>
               ) : (
                 <Badge className="bg-gradient-to-r from-green-100 to-green-200 text-green-800 shadow-sm px-4 py-2 rounded-lg text-sm font-medium">
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Tradovate Conectado
+                  {connectedUsername && (
+                    <span className="text-xs opacity-75 ml-1">
+                      ({connectedUsername})
+                    </span>
+                  )}
                 </Badge>
               )}
             </div>
@@ -528,7 +567,7 @@ const CopyTradingComponent = () => {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="master-account">Conta Principal</Label>
-                  {isConnected && currentUser.accounts?.length > 0 ? (
+                  {isConnectedToTradovate && tradovateAccounts?.length > 0 ? (
                     <div className="relative mt-1">
                       <select
                         id="master-account"
@@ -536,14 +575,19 @@ const CopyTradingComponent = () => {
                         onChange={(e) => setSelectedMasterAccount(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
                       >
-                        <option value="">Selecione a conta master</option>
-                        {currentUser.accounts
-                          .filter(acc => acc.type === 'main')
-                          .map((account) => (
+                        <option value="">Selecione uma conta</option>
+                        {tradovateAccounts.length > 0 ? (
+                          tradovateAccounts.map((account) => (
                             <option key={account.id} value={account.id}>
-                              {account.id}
+                              {account.name} - ${account.balance.toLocaleString()}
                             </option>
-                          ))}
+                          ))
+                        ) : (
+                          <>
+                            <option value="ACC001">Demo Account 1 - $50,000</option>
+                            <option value="ACC002">Demo Account 2 - $25,000</option>
+                          </>
+                        )}
                       </select>
                       <ChevronDown className="absolute right-3 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
                     </div>
@@ -717,6 +761,26 @@ const CopyTradingComponent = () => {
           </AlertDescription>
         </Alert>
       </div>
+
+      {/* Modal de Login Tradovate - NOVO! */}
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="relative">
+            {/* Botão Fechar */}
+            <button
+              onClick={() => setShowLoginModal(false)}
+              className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 shadow-lg z-10"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            
+            {/* Componente de Login */}
+            <PickMyTradeLogin 
+              onConnectionChange={handleConnectionChange}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
