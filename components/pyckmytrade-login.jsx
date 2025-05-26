@@ -6,142 +6,69 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Alert, AlertDescription } from './ui/alert';
-import { Loader2, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { Loader2, Info } from 'lucide-react';
 
 export function PickMyTradeLogin({ onConnectionChange }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [environment, setEnvironment] = useState('demo');
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    try {
-      // 1. Login via nosso proxy
-      const loginResponse = await fetch('/api/tradovate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'login',
-          environment,
-          username,
-          password
-        })
-      });
-
-      if (!loginResponse.ok) {
-        const errorData = await loginResponse.json();
-        throw new Error(errorData.error || 'Falha no login');
-      }
-
-      const loginData = await loginResponse.json();
-      const accessToken = loginData.accessToken;
-
-      // 2. Buscar contas
-      const accountsResponse = await fetch('/api/tradovate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'accounts',
-          environment,
-          token: accessToken
-        })
-      });
-
-      if (!accountsResponse.ok) {
-        throw new Error('Falha ao buscar contas');
-      }
-
-      const accounts = await accountsResponse.json();
-
-      // 3. Buscar saldos
-      const accountsWithBalance = await Promise.all(
-        accounts.map(async (account) => {
-          try {
-            const balanceResponse = await fetch('/api/tradovate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'balance',
-                environment,
-                token: accessToken,
-                accountId: account.id
-              })
-            });
-            
-            if (balanceResponse.ok) {
-              const balanceData = await balanceResponse.json();
-              return {
-                id: account.name,
-                name: account.nickname || account.name,
-                balance: balanceData.cashBalance || 0
-              };
+    // Simular login para teste
+    // NOTA: Para conectar ao Tradovate real, você precisará:
+    // 1. Criar uma conta de desenvolvedor em partners.tradovate.com
+    // 2. Obter API credentials
+    // 3. Implementar a autenticação OAuth
+    
+    setTimeout(() => {
+      if (username && password) {
+        // Por enquanto, vamos simular com contas demo
+        alert(`🔄 Tentando conectar com usuário: ${username}\n\n⚠️ NOTA: A conexão real com Tradovate ainda não está implementada.\n\n📝 Para implementar:\n1. Registre-se em partners.tradovate.com\n2. Obtenha suas API keys\n3. Configure o backend para autenticação`);
+        
+        // Simular sucesso com contas demo
+        onConnectionChange({
+          connected: true,
+          username: username,
+          accounts: [
+            { 
+              id: 'DEMO_' + username + '_001', 
+              name: 'Conta Principal ' + username, 
+              balance: 100000 
+            },
+            { 
+              id: 'DEMO_' + username + '_002', 
+              name: 'Conta Secundária ' + username, 
+              balance: 50000 
             }
-          } catch (err) {
-            console.error('Erro ao buscar saldo:', err);
-          }
-          
-          return {
-            id: account.name,
-            name: account.nickname || account.name,
-            balance: 0
-          };
-        })
-      );
-
-      // Sucesso!
-      onConnectionChange({
-        connected: true,
-        username: username,
-        accounts: accountsWithBalance
-      });
-
-      setIsLoading(false);
-
-    } catch (err) {
-      console.error('Erro:', err);
-      setError(err.message || 'Erro ao conectar');
-      setIsLoading(false);
-    }
+          ]
+        });
+        
+        setIsLoading(false);
+      } else {
+        setError('Por favor, preencha todos os campos');
+        setIsLoading(false);
+      }
+    }, 1500);
   };
 
   return (
     <Card className="w-full max-w-md">
-      <CardHeader>
+      <CardHeader className="space-y-1">
         <CardTitle className="text-2xl text-center">
           Login Tradovate
         </CardTitle>
+        <p className="text-sm text-gray-600 text-center">
+          Entre com suas credenciais Tradovate Demo
+        </p>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <Label>Ambiente</Label>
-            <div className="flex gap-2 mt-1">
-              <Button
-                type="button"
-                variant={environment === 'demo' ? 'default' : 'outline'}
-                onClick={() => setEnvironment('demo')}
-                className="flex-1"
-              >
-                Demo (Teste)
-              </Button>
-              <Button
-                type="button"
-                variant={environment === 'live' ? 'default' : 'outline'}
-                onClick={() => setEnvironment('live')}
-                className="flex-1"
-                disabled
-              >
-                Real (Desativado)
-              </Button>
-            </div>
-          </div>
-
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="username">Usuário Tradovate</Label>
             <Input
               id="username"
@@ -150,43 +77,41 @@ export function PickMyTradeLogin({ onConnectionChange }) {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={isLoading}
-              className="mt-1"
               required
             />
           </div>
 
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="password">Senha</Label>
             <Input
               id="password"
               type="password"
-              placeholder="Sua senha demo"
+              placeholder="Sua senha"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
-              className="mt-1"
               required
             />
           </div>
 
           {error && (
             <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           <Alert>
             <Info className="h-4 w-4" />
-            <AlertDescription>
-              Use suas credenciais da conta demo Tradovate
+            <AlertDescription className="text-xs">
+              <strong>Modo Demo:</strong> A conexão real com Tradovate requer configuração adicional. 
+              Por enquanto, este é um modo de demonstração.
             </AlertDescription>
           </Alert>
 
           <Button
             type="submit"
             className="w-full"
-            disabled={isLoading || !username || !password}
+            disabled={isLoading}
           >
             {isLoading ? (
               <>
@@ -194,19 +119,21 @@ export function PickMyTradeLogin({ onConnectionChange }) {
                 Conectando...
               </>
             ) : (
-              'Conectar ao Tradovate Demo'
+              'Conectar'
             )}
           </Button>
 
-          <div className="text-center text-sm text-gray-600 space-y-1">
-            <p>Não tem conta demo?</p>
+          <div className="text-center space-y-2">
+            <p className="text-sm text-gray-600">
+              Não tem conta demo?
+            </p>
             <a 
-              href="https://demo.tradovate.com/#/signup" 
+              href="https://www.tradovate.com/demos/" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-blue-600 hover:underline font-medium"
+              className="text-sm text-blue-600 hover:underline font-medium"
             >
-              Criar conta demo grátis →
+              Criar conta demo Tradovate →
             </a>
           </div>
         </form>
