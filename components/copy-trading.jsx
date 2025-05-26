@@ -57,6 +57,16 @@ const CopyTradingComponent = () => {
   const [selectedMasterAccount, setSelectedMasterAccount] = useState('');
   const [followers, setFollowers] = useState([]);
 
+  // DEBUG - Ver estados
+  useEffect(() => {
+    console.log('🔍 Estados atuais:', {
+      isConnectedToTradovate,
+      tradovateAccounts,
+      connectedUsername,
+      showLoginModal
+    });
+  }, [isConnectedToTradovate, tradovateAccounts, connectedUsername, showLoginModal]);
+
   const connectTradovate = async () => {
     setIsConnecting(true);
     setTimeout(() => {
@@ -82,7 +92,10 @@ const CopyTradingComponent = () => {
 
   // NOVA função para gerir conexão Tradovate
   const handleConnectionChange = (connectionData) => {
+    console.log('🔄 handleConnectionChange chamada com:', connectionData);
+    
     if (connectionData.connected) {
+      console.log('✅ Conectado! Dados:', connectionData);
       setIsConnectedToTradovate(true);
       setTradovateAccounts(connectionData.accounts || []);
       setConnectedUsername(connectionData.username || '');
@@ -90,9 +103,13 @@ const CopyTradingComponent = () => {
       
       // Se tiver contas, configurar a primeira como master
       if (connectionData.accounts && connectionData.accounts.length > 0) {
+        console.log('📊 Contas encontradas:', connectionData.accounts);
         setSelectedMasterAccount(connectionData.accounts[0].id);
+      } else {
+        console.log('❌ Nenhuma conta encontrada!');
       }
     } else {
+      console.log('❌ Desconectado');
       setIsConnectedToTradovate(false);
       setTradovateAccounts([]);
       setConnectedUsername('');
@@ -366,11 +383,11 @@ const CopyTradingComponent = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
                   >
                     <option value="">Escolha uma conta...</option>
-                    {currentUser.accounts
-                      .filter(acc => acc.type === 'sub' && acc.id !== selectedMasterAccount)
+                    {tradovateAccounts
+                      .filter(acc => acc.id !== selectedMasterAccount)
                       .map((account) => (
                         <option key={account.id} value={account.id}>
-                          {account.id}
+                          {account.name}
                         </option>
                       ))}
                   </select>
@@ -432,41 +449,58 @@ const CopyTradingComponent = () => {
             <div className="flex items-center space-x-4">
               {!isConnectedToTradovate ? (
                 <button
-                  onClick={() => setShowLoginModal(true)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                    isConnectedToTradovate 
-                      ? 'bg-green-600 hover:bg-green-700 text-white' 
-                      : 'bg-gray-800 hover:bg-gray-700 text-white'
-                  }`}
+                  onClick={() => {
+                    console.log('🔵 Abrindo modal de login');
+                    setShowLoginModal(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all bg-gray-800 hover:bg-gray-700 text-white"
                 >
-                  {isConnectedToTradovate ? (
-                    <>
-                      <CheckCircle className="h-5 w-5" />
-                      <span>Tradovate Conectado</span>
-                      {connectedUsername && (
-                        <span className="text-xs opacity-75 ml-1">
-                          ({connectedUsername})
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <Link2 className="h-5 w-5" />
-                      <span>Conectar ao Tradovate</span>
-                    </>
-                  )}
+                  <Link2 className="h-5 w-5" />
+                  <span>Conectar ao Tradovate</span>
                 </button>
               ) : (
-                <Badge className="bg-gradient-to-r from-green-100 to-green-200 text-green-800 shadow-sm px-4 py-2 rounded-lg text-sm font-medium">
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Tradovate Conectado
-                  {connectedUsername && (
-                    <span className="text-xs opacity-75 ml-1">
-                      ({connectedUsername})
-                    </span>
-                  )}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-gradient-to-r from-green-100 to-green-200 text-green-800 shadow-sm px-4 py-2 rounded-lg text-sm font-medium">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Tradovate Conectado
+                    {connectedUsername && (
+                      <span className="text-xs opacity-75 ml-1">
+                        ({connectedUsername})
+                      </span>
+                    )}
+                  </Badge>
+                  <button
+                    onClick={() => {
+                      console.log('🔴 Desconectando...');
+                      setIsConnectedToTradovate(false);
+                      setTradovateAccounts([]);
+                      setConnectedUsername('');
+                      setSelectedMasterAccount('');
+                    }}
+                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm"
+                  >
+                    Desconectar
+                  </button>
+                </div>
               )}
+              
+              {/* BOTÃO DE TESTE */}
+              <button
+                onClick={() => {
+                  console.log('🧪 Teste com dados fictícios');
+                  handleConnectionChange({
+                    connected: true,
+                    username: 'DemoUser',
+                    accounts: [
+                      { id: 'DEMO001', name: 'Conta Demo Principal', balance: 100000 },
+                      { id: 'DEMO002', name: 'Conta Demo Secundária', balance: 50000 }
+                    ]
+                  });
+                }}
+                className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-2 rounded text-sm font-medium"
+              >
+                🧪 Testar
+              </button>
             </div>
           </div>
         </div>
@@ -567,29 +601,34 @@ const CopyTradingComponent = () => {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="master-account">Conta Principal</Label>
-                  {isConnectedToTradovate && tradovateAccounts?.length > 0 ? (
+                  {isConnectedToTradovate ? (
                     <div className="relative mt-1">
                       <select
                         id="master-account"
                         value={selectedMasterAccount}
-                        onChange={(e) => setSelectedMasterAccount(e.target.value)}
+                        onChange={(e) => {
+                          console.log('📝 Conta selecionada:', e.target.value);
+                          setSelectedMasterAccount(e.target.value);
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
                       >
                         <option value="">Selecione uma conta</option>
-                        {tradovateAccounts.length > 0 ? (
+                        {tradovateAccounts && tradovateAccounts.length > 0 ? (
                           tradovateAccounts.map((account) => (
                             <option key={account.id} value={account.id}>
-                              {account.name} - ${account.balance.toLocaleString()}
+                              {account.name} - ${(account.balance || 0).toLocaleString()}
                             </option>
                           ))
                         ) : (
-                          <>
-                            <option value="ACC001">Demo Account 1 - $50,000</option>
-                            <option value="ACC002">Demo Account 2 - $25,000</option>
-                          </>
+                          <option value="" disabled>Nenhuma conta encontrada</option>
                         )}
                       </select>
                       <ChevronDown className="absolute right-3 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
+                      
+                      {/* Debug info */}
+                      <div className="mt-2 text-xs text-gray-500">
+                        {tradovateAccounts.length} conta(s) disponível(is)
+                      </div>
                     </div>
                   ) : (
                     <Input
@@ -684,9 +723,14 @@ const CopyTradingComponent = () => {
                   onClick={() => setShowConnectionModal(true)}
                   variant="outline"
                   className="w-full bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100"
+                  disabled={!isConnectedToTradovate || tradovateAccounts.length < 2}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Subconta Seguidora
+                  {!isConnectedToTradovate 
+                    ? 'Conecte ao Tradovate primeiro' 
+                    : tradovateAccounts.length < 2
+                    ? 'Precisa de mais contas'
+                    : 'Adicionar Subconta Seguidora'}
                 </Button>
               </div>
             </CardContent>
