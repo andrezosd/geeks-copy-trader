@@ -13,13 +13,7 @@ export function PickMyTradeLogin({ onConnectionChange }) {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [environment, setEnvironment] = useState('demo'); // 'demo' ou 'live'
-
-  // URLs da API Tradovate
-  const API_URLS = {
-    demo: 'https://demo.tradovateapi.com/v1',
-    live: 'https://live.tradovateapi.com/v1'
-  };
+  const [environment, setEnvironment] = useState('demo');
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -27,67 +21,64 @@ export function PickMyTradeLogin({ onConnectionChange }) {
     setIsLoading(true);
 
     try {
-      // 1. Fazer login no Tradovate
-      const loginResponse = await fetch(`${API_URLS[environment]}/auth/accesstokenrequest`, {
+      // 1. Login via nosso proxy
+      const loginResponse = await fetch('/api/tradovate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: username,
-          password: password,
-          appId: 'Sample App', // Você pode mudar isso
-          appVersion: '1.0',
-          cid: 8, // Client ID padrão para aplicações web
-          sec: '2c91c5d9-4c29-4b35-8c7a-b6ef0e3b0b3f' // Secret padrão para demos
+          action: 'login',
+          environment,
+          username,
+          password
         })
       });
 
       if (!loginResponse.ok) {
         const errorData = await loginResponse.json();
-        throw new Error(errorData.message || 'Falha no login');
+        throw new Error(errorData.error || 'Falha no login');
       }
 
       const loginData = await loginResponse.json();
       const accessToken = loginData.accessToken;
 
-      // 2. Buscar informações da conta
-      const accountResponse = await fetch(`${API_URLS[environment]}/account/list`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Accept': 'application/json',
-        }
+      // 2. Buscar contas
+      const accountsResponse = await fetch('/api/tradovate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'accounts',
+          environment,
+          token: accessToken
+        })
       });
 
-      if (!accountResponse.ok) {
+      if (!accountsResponse.ok) {
         throw new Error('Falha ao buscar contas');
       }
 
-      const accounts = await accountResponse.json();
+      const accounts = await accountsResponse.json();
 
-      // 3. Buscar saldos das contas
+      // 3. Buscar saldos
       const accountsWithBalance = await Promise.all(
         accounts.map(async (account) => {
           try {
-            const balanceResponse = await fetch(
-              `${API_URLS[environment]}/account/item?id=${account.id}`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${accessToken}`,
-                  'Accept': 'application/json',
-                }
-              }
-            );
+            const balanceResponse = await fetch('/api/tradovate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'balance',
+                environment,
+                token: accessToken,
+                accountId: account.id
+              })
+            });
             
             if (balanceResponse.ok) {
               const balanceData = await balanceResponse.json();
               return {
                 id: account.name,
                 name: account.nickname || account.name,
-                balance: balanceData.cashBalance || 0,
-                accountId: account.id
+                balance: balanceData.cashBalance || 0
               };
             }
           } catch (err) {
@@ -97,61 +88,26 @@ export function PickMyTradeLogin({ onConnectionChange }) {
           return {
             id: account.name,
             name: account.nickname || account.name,
-            balance: 0,
-            accountId: account.id
+            balance: 0
           };
         })
       );
 
-      // 4. Enviar dados para o componente pai
+      // Sucesso!
       onConnectionChange({
         connected: true,
         username: username,
-        accounts: accountsWithBalance,
-        accessToken: accessToken,
-        environment: environment
+        accounts: accountsWithBalance
       });
 
-      // Guardar token no localStorage para reconexão
-      localStorage.setItem('tradovate_token', accessToken);
-      localStorage.setItem('tradovate_username', username);
-      localStorage.setItem('tradovate_env', environment);
+      setIsLoading(false);
 
     } catch (err) {
-      console.error('Erro no login:', err);
-      setError(err.message || 'Erro ao conectar. Verifique suas credenciais.');
+      console.error('Erro:', err);
+      setError(err.message || 'Erro ao conectar');
       setIsLoading(false);
     }
   };
-
-  // Tentar reconectar automaticamente
-  useState(() => {
-    const savedToken = localStorage.getItem('tradovate_token');
-    const savedUsername = localStorage.getItem('tradovate_username');
-    const savedEnv = localStorage.getItem('tradovate_env');
-    
-    if (savedToken && savedUsername) {
-      // Verificar se o token ainda é válido
-      fetch(`${API_URLS[savedEnv || 'demo']}/account/list`, {
-        headers: {
-          'Authorization': `Bearer ${savedToken}`,
-          'Accept': 'application/json',
-        }
-      }).then(response => {
-        if (response.ok) {
-          setUsername(savedUsername);
-          setEnvironment(savedEnv || 'demo');
-          // Token ainda válido, fazer login automático
-          // handleLogin({ preventDefault: () => {} });
-        } else {
-          // Token expirado, limpar
-          localStorage.removeItem('tradovate_token');
-          localStorage.removeItem('tradovate_username');
-          localStorage.removeItem('tradovate_env');
-        }
-      });
-    }
-  }, []);
 
   return (
     <Card className="w-full max-w-md">
@@ -162,7 +118,6 @@ export function PickMyTradeLogin({ onConnectionChange }) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleLogin} className="space-y-4">
-          {/* Seletor de Ambiente */}
           <div>
             <Label>Ambiente</Label>
             <div className="flex gap-2 mt-1">
@@ -172,25 +127,26 @@ export function PickMyTradeLogin({ onConnectionChange }) {
                 onClick={() => setEnvironment('demo')}
                 className="flex-1"
               >
-                Demo
+                Demo (Teste)
               </Button>
               <Button
                 type="button"
                 variant={environment === 'live' ? 'default' : 'outline'}
                 onClick={() => setEnvironment('live')}
                 className="flex-1"
+                disabled
               >
-                Real
+                Real (Desativado)
               </Button>
             </div>
           </div>
 
           <div>
-            <Label htmlFor="username">Usuário</Label>
+            <Label htmlFor="username">Usuário Tradovate</Label>
             <Input
               id="username"
               type="text"
-              placeholder="Seu usuário Tradovate"
+              placeholder="Seu usuário demo"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={isLoading}
@@ -204,7 +160,7 @@ export function PickMyTradeLogin({ onConnectionChange }) {
             <Input
               id="password"
               type="password"
-              placeholder="Sua senha"
+              placeholder="Sua senha demo"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
@@ -223,9 +179,7 @@ export function PickMyTradeLogin({ onConnectionChange }) {
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              {environment === 'demo' 
-                ? 'Usando ambiente DEMO - Sem risco real'
-                : '⚠️ ATENÇÃO: Ambiente REAL - Dinheiro real!'}
+              Use suas credenciais da conta demo Tradovate
             </AlertDescription>
           </Alert>
 
@@ -240,19 +194,19 @@ export function PickMyTradeLogin({ onConnectionChange }) {
                 Conectando...
               </>
             ) : (
-              'Conectar'
+              'Conectar ao Tradovate Demo'
             )}
           </Button>
 
-          <div className="text-center text-sm text-gray-600">
+          <div className="text-center text-sm text-gray-600 space-y-1">
             <p>Não tem conta demo?</p>
             <a 
-              href="https://demo.tradovate.com" 
+              href="https://demo.tradovate.com/#/signup" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-blue-600 hover:underline"
+              className="text-blue-600 hover:underline font-medium"
             >
-              Criar conta demo grátis
+              Criar conta demo grátis →
             </a>
           </div>
         </form>
